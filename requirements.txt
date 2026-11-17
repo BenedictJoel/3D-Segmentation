@@ -1,0 +1,27 @@
+# Paket untuk SAM_Med3D_nnUNet_RSHS_demo.ipynb dan SAM_Med3D_Demo_Turbo_vs_FT.ipynb
+# Versi = venv yang sudah diuji (Python 3.11, Windows, RTX 4070 SUPER, CUDA 11.8).
+#
+# Pasang:   python -m pip install -r requirements.txt
+#
+# PyTorch versi CUDA diambil dari index resmi PyTorch (cu118).
+# GPU RTX 50xx (Blackwell) butuh cu128: ganti "cu118" di bawah menjadi "cu128" di 3 tempat.
+# Tanpa GPU NVIDIA: hapus baris --extra-index-url dan akhiran "+cu118".
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch==2.7.1+cu118
+torchvision==0.22.1+cu118
+
+# komputasi & citra medis
+numpy==2.4.6
+scipy==1.17.1
+nibabel==5.4.2
+pandas==3.0.5
+
+# segmentasi otomatis nnU-Net (Langkah 6 notebook RSHS)
+nnunetv2==2.8.1
+
+# Jupyter + UI klik interaktif (%matplotlib widget)
+matplotlib==3.11.2
+ipywidgets==8.1.9
+ipympl==0.10.0
+ipykernel==7.3.0
+notebook==7.6.2

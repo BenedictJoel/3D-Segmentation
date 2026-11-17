@@ -4,48 +4,87 @@ Panduan ini mencakup **dua notebook**:
 
 | Notebook | Untuk apa |
 |---|---|
-| **`SAM_Med3D_Demo_Turbo_vs_FT_2.ipynb`** | Demo di **dataset CMRxMotion** (data berlabel). Membandingkan model **Zero-shot (Turbo)** vs **Fine-tuned**, plus figur-figur diagnostik untuk paper. |
+| **`SAM_Med3D_Demo_Turbo_vs_FT.ipynb`** | Demo di **dataset CMRxMotion** (data berlabel). Membandingkan model **Zero-shot (Turbo)** vs **Fine-tuned**, plus figur-figur diagnostik untuk paper. |
 | **`SAM_Med3D_nnUNet_RSHS_demo.ipynb`** | Mencoba model pada **data baru / RSHS** (`.nii`), **dengan atau tanpa label**. Termasuk **nnU-Net** otomatis dan **ekspor hasil ke `.nii`**. |
 
 Keduanya memakai model yang **sudah dilatih** — tidak ada training ulang. Cukup dimuat lalu dipakai.
 
 ---
 
-## 0. Prasyarat (berlaku untuk kedua notebook)
+## 0. Setup dari GitHub (berlaku untuk kedua notebook)
 
-**Perangkat keras:** GPU NVIDIA (dipakai: RTX 4070 SUPER 12 GB). Tanpa GPU tetap jalan tapi lambat.
+**Perangkat keras:** GPU NVIDIA (diuji: RTX 4070 SUPER 12 GB). Tanpa GPU tetap jalan tapi lambat.
+**Software:** [Git](https://git-scm.com/), [Git LFS](https://git-lfs.com/) (sudah termasuk di Git for Windows), Python **3.11** (yang diuji; 3.10+ seharusnya bisa).
 
-**Software:** Python 3.10+, dan paket:
-`torch` (versi CUDA), `nibabel`, `numpy`, `pandas`, `scipy`, `matplotlib`, `ipywidgets`, `ipympl`.
-Untuk notebook RSHS tambahkan `nnunetv2`.
+> Kalau notebook dijalankan di **laptop asli** (`D:\Joel` yang sudah lengkap), lewati langkah 1–5 dan langsung ke bagian A/B.
 
+Jalankan di **Command Prompt (cmd)**:
+
+**1. Clone repo ini ke `D:\Joel`** (path di notebook memakai `D:\Joel`; kalau pindah lokasi, ganti semua `D:\Joel` di sel konfigurasi notebook).
 ```
-pip install torch --index-url https://download.pytorch.org/whl/cu121
-pip install nibabel numpy pandas scipy matplotlib ipywidgets ipympl nnunetv2
+git lfs install
+git clone https://github.com/BenedictJoel/3D-Segmentation.git D:\Joel
+```
+Checkpoint `.pth` disimpan lewat Git LFS (± 2,4 GB) dan ikut terunduh otomatis saat clone. Cek: `D:\Joel\work\sam_ft_frozen\fold0\sam_model_best.pth` harus berukuran ± 400 MB. Kalau hanya beberapa KB, jalankan `cd D:\Joel` lalu `git lfs pull`.
+
+**2. Clone kode SAM-Med3D** (tidak ikut di repo ini karena repo git terpisah):
+```
+git clone https://github.com/uni-medical/SAM-Med3D.git D:\Joel\SAM-Med3D
 ```
 
-> **`ipympl` wajib.** Tanpa paket ini, `%matplotlib widget` (kanvas klik) tidak muncul. Jika UI tidak tampil: install `ipympl` lalu **restart kernel**.
+**3. Unduh checkpoint Turbo** (± 400 MB) dari rilis resmi SAM-Med3D:
+https://huggingface.co/blueyo0/SAM-Med3D/blob/main/sam_med3d_turbo.pth
+Simpan di `D:\Joel\SAM-Med3D\ckpt\sam_med3d_turbo.pth` (buat folder `ckpt` kalau belum ada).
 
-**Struktur folder** (ganti `D:\Joel` ke lokasimu):
+**4. Buat environment Python + pasang paket** dari [`requirements.txt`](requirements.txt):
+```
+cd D:\Joel
+python -m venv venv
+venv\Scripts\activate
+python -m pip install -r requirements.txt
+python -m ipykernel install --user --name joel-venv --display-name "Python (Joel venv)"
+```
+`requirements.txt` memakai PyTorch CUDA 11.8. GPU RTX 50xx butuh CUDA 12.8; tanpa GPU pakai versi CPU (lihat komentar di dalam file).
+
+**5. Buka notebook** di VS Code / Jupyter, pilih kernel **Python (Joel venv)**.
+
+> **`ipympl` wajib** (sudah ada di `requirements.txt`). Tanpa paket ini, `%matplotlib widget` (kanvas klik) tidak muncul. Jika UI tidak tampil: pastikan kernel benar lalu **restart kernel**.
+
+**Isi repo vs yang perlu disiapkan sendiri:**
+
+| Kebutuhan | Di repo? |
+|---|---|
+| Notebook `SAM_Med3D_nnUNet_RSHS_demo.ipynb`, `SAM_Med3D_Demo_Turbo_vs_FT.ipynb` | Ya |
+| Checkpoint fine-tuned `work\sam_ft_frozen\fold0..4\sam_model_best.pth` | Ya (LFS) |
+| Model nnU-Net fold 0 (`checkpoint_final.pth`, `plans.json`, `dataset.json`) | Ya (LFS) |
+| `work\results_noc\folds_subjek.csv`, `Dataset\data\` (CMRxMotion) | Ya |
+| Kode SAM-Med3D + `sam_med3d_turbo.pth` | **Tidak** — langkah 2–3 |
+| Paket Python | **Tidak** — langkah 4 |
+| Data baru (`.nii`) | **Tidak** — taruh di `D:\Joel\RSHS\` |
+
+**Struktur folder setelah setup:**
 
 ```
 D:\Joel\
 ├─ Dataset\data\                     # citra + label .nii.gz (CMRxMotion)
-├─ SAM-Med3D\                         # repo SAM-Med3D (hasil clone)
-│   └─ ckpt\sam_med3d_turbo.pth       # checkpoint Turbo (zero-shot)
+├─ SAM-Med3D\                         # repo SAM-Med3D (langkah 2)
+│   └─ ckpt\sam_med3d_turbo.pth       # checkpoint Turbo (langkah 3)
 ├─ work\
 │   ├─ sam_ft_frozen\fold0..4\sam_model_best.pth   # checkpoint fine-tuned per fold
-│   ├─ results_noc\                   # folds_subjek.csv + kurva CSV + output demo CMRxMotion
+│   ├─ results_noc\                   # folds_subjek.csv + output demo CMRxMotion
 │   ├─ results_rshs\                  # output demo data baru (otomatis dibuat)
-│   └─ nnunet\nnUNet_results\         # model nnU-Net terlatih
-└─ RSHS\                              # tempat menaruh data baru (.nii)
+│   └─ nnunet\nnUNet_results\Dataset111_CMRxMotion\nnUNetTrainer_100epochs__nnUNetPlans__3d_fullres\
+│       ├─ plans.json, dataset.json
+│       └─ fold_0\checkpoint_final.pth            # model nnU-Net
+├─ RSHS\                              # tempat menaruh data baru (.nii)
+└─ venv\                              # environment Python (langkah 4)
 ```
 
-> **PENTING — file besar tidak ada di GitHub.** Checkpoint Turbo dan model nnU-Net (± 5 GB) **tidak** ikut di repo. Notebook hanya jalan di laptop yang berisi file-file ini. Kalau dijalankan di komputer lain, **kedua file itu harus disalin** ke sana lebih dulu.
+> Repo hanya berisi model nnU-Net **fold 0**, jadi biarkan `NNUNET_FOLDS = "0"` di notebook RSHS.
 
 ---
 
-## A. Notebook Demo CMRxMotion — `SAM_Med3D_Demo_Turbo_vs_FT_2.ipynb`
+## A. Notebook Demo CMRxMotion — `SAM_Med3D_Demo_Turbo_vs_FT.ipynb`
 
 Tujuan: menunjukkan **cara setup** dan membandingkan Zero-shot vs Fine-tuned secara interaktif. **Demo inti = jalankan Sel 1 → 2 → 3 → 4B** secara berurutan.
 
@@ -117,7 +156,7 @@ NNUNET_RESULTS = WORK_DIR/"nnunet"/"nnUNet_results"
 NNUNET_DATASET = "Dataset111_CMRxMotion"
 NNUNET_TRAINER = "nnUNetTrainer_100epochs"
 NNUNET_CONFIG  = "3d_fullres"
-NNUNET_FOLDS   = "0"          # atau "0 1 2 3 4" untuk ensemble (lebih lama)
+NNUNET_FOLDS   = "0"          # repo hanya berisi fold 0
 ```
 
 Setelah hasil ada, sel viewer menampilkan overlay nnU-Net per kelas (LV merah, MYO kuning, RV cyan). Pesan error lengkap nnU-Net tampil di output sel bila gagal.
@@ -132,7 +171,7 @@ Setelah hasil ada, sel viewer menampilkan overlay nnU-Net per kelas (LV merah, M
 
 ## Catatan penting
 
-- **Hanya jalan di laptop yang berisi checkpoint Turbo + model nnU-Net (± 5 GB).** File ini tidak ada di GitHub; salin dulu bila pindah komputer.
+- **Di komputer lain**, ikuti bagian 0 (clone repo + SAM-Med3D, unduh Turbo, pasang paket). Semua checkpoint lain sudah ada di repo.
 - **Domain shift:** kedua model dilatih di CMRxMotion. Pada scanner berbeda (RSHS) hasil bisa menurun. **SAM-Med3D bisa dikoreksi dengan klik; nnU-Net otomatis tidak.** Jangan janjikan akurasi setara.
 - **Pemilihan fold FT** pada data baru: fold mana pun valid (default `FT_FOLD=0`); bandingkan beberapa fold bila ingin lebih kokoh.
 - **Pusat ROI (MODE B):** kubus 128³ ≈ 19 cm pada 1.5 mm. Kalau jantung tidak masuk penuh, geser pusat / pilih slice lain saat memilih.
@@ -142,7 +181,7 @@ Setelah hasil ada, sel viewer menampilkan overlay nnU-Net per kelas (LV merah, M
 | Gejala | Penyebab / solusi |
 |---|---|
 | UI/kanvas tidak muncul | `ipympl` belum ada → install, **restart kernel**, pastikan `%matplotlib widget` jalan |
-| `checkpoint tak ada: ...` | path salah atau file `.pth` belum disalin ke tempatnya |
+| `checkpoint tak ada: ...` | path salah, Turbo belum diunduh (bagian 0 langkah 3), atau file LFS belum terunduh (`git lfs pull`) |
 | `ModuleNotFoundError: segment_anything` | `SAM_REPO` tidak menunjuk folder repo SAM-Med3D |
 | `CUDA out of memory` | tutup proses lain yang pakai GPU, atau jalankan di CPU (lebih lambat) |
 | nnU-Net `command not found` / gagal | `pip install nnunetv2`; `-d/-tr/-c/-f` harus cocok dengan model terlatih; cek `nnUNet_results` |
