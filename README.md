@@ -125,7 +125,7 @@ Tujuan: mencoba model pada **data baru `.nii`**. Dua jalur, dipilih lewat satu b
 
 ### Menyiapkan data
 
-Taruh file di `D:\Joel\RSHS\`, misalnya `case01.nii.gz`. Kalau ada label, tambahkan `case01-label.nii.gz` (kode kelas **1=LV, 2=MYO, 3=RV**, satu geometri dengan citra).
+Taruh file di `D:\Joel\RSHS\`, misalnya `case01.nii.gz`. Kalau ada label, tambahkan `case01-label.nii.gz` (satu geometri dengan citra; kode kelasnya diatur lewat `LABEL_MAP`, lihat bawah).
 
 > Data **DICOM** harus dikonversi ke `.nii` dulu (mis. `dcm2niix`), karena notebook membaca NIfTI, bukan `.dcm`. Model ini **3D**, jadi butuh **satu volume/series** — bukan satu irisan 2D saja. Citra 4D (cine) otomatis diambil frame pertama.
 
@@ -134,17 +134,22 @@ Taruh file di `D:\Joel\RSHS\`, misalnya `case01.nii.gz`. Kalau ada label, tambah
 ```python
 RSHS_IMAGE  = Path(r"D:\Joel\RSHS\case01.nii.gz")   # citra, wajib
 RSHS_LABEL  = None   # None = MODE B (tanpa GT). Isi Path(...) utk MODE A (ada GT).
-RSHS_STRUCT = 1      # 1=LV, 2=MYO, 3=RV
+STRUCT_AWAL = "LV"   # struktur awal di dropdown UI; bisa diganti langsung di UI
+LABEL_MAP   = {"LV":1, "MYO":2, "RV":3}   # kode kelas di file label (MODE A)
 FT_FOLD     = 0      # checkpoint fine-tuned fold mana (0..4)
 ```
 
 Ada pengecekan di awal: kalau citra/label/checkpoint tidak ada, atau ukuran citra ≠ label, langsung muncul pesan yang jelas.
+
+**Kode kelas label (MODE A).** Default `LABEL_MAP` mengikuti CMRxMotion (LV=1, MYO=2, RV=3), tapi tiap dataset bisa berbeda (contoh ACDC: LV=3, MYO=2, RV=1). Saat Langkah 1 dijalankan, notebook mencetak **kode yang ada di file label**, misalnya `[0, 1, 2, 3]`, dan memberi PERINGATAN kalau kode di `LABEL_MAP` tidak ada. Cocokkan dengan dokumentasi data, lalu ubah `LABEL_MAP`. Kalau kodenya sama-sama 1/2/3 tapi urutannya beda, notebook **tidak bisa mendeteksinya otomatis** — pastikan sesuai dokumentasi.
 
 ### Menjalankan
 
 1. Jalankan sel dari atas (Langkah 1 → 2 → 3).
 2. **MODE B (tanpa GT):** di **Langkah 4** muncul picker — geser slice ke jantung, **klik satu kali di pusat jantung**, tekan **Pakai pusat terpilih**.
 3. **Langkah 5 — demo klik SAM.** Di MODE B, jika baru memilih pusat setelah sel ini jalan, tekan **Muat** agar ROI dipotong ulang di pusat baru. Klik **+** untuk membentuk masker, **−** untuk mengoreksi.
+   - **Struktur (LV / MYO / RV)** dipilih lewat dropdown di UI; ROI langsung dimuat ulang dan klik di-reset. Di MODE A struktur menentukan GT, pusat ROI, dan DSC; di MODE B hanya nama file ekspor (yang menentukan objek tersegmentasi adalah klik).
+   - **MYO berbentuk cincin:** pusatnya jatuh di rongga LV, jadi **Klik tengah** untuk MYO hampir pasti meleset (sama seperti di 4B). Klik langsung di otot jantungnya.
 4. **Ekspor .nii** — menyimpan prediksi Turbo & Fine-tuned ke **geometri asli pasien** di `work\results_rshs\`. Buka di **3D Slicer / ITK-SNAP** agar menempel pas pada citra asli.
 
 ### nnU-Net otomatis (Langkah 6)
@@ -185,4 +190,5 @@ Setelah hasil ada, sel viewer menampilkan overlay nnU-Net per kelas (LV merah, M
 | `ModuleNotFoundError: segment_anything` | `SAM_REPO` tidak menunjuk folder repo SAM-Med3D |
 | `CUDA out of memory` | tutup proses lain yang pakai GPU, atau jalankan di CPU (lebih lambat) |
 | nnU-Net `command not found` / gagal | `pip install nnunetv2`; `-d/-tr/-c/-f` harus cocok dengan model terlatih; cek `nnUNet_results` |
-| "GT kosong untuk struktur ini" | struktur itu tidak ada pada frame terpilih; ganti kasus/struktur |
+| "GT kosong untuk struktur ini" (Demo CMRxMotion) | struktur itu tidak ada pada frame terpilih; ganti kasus/struktur |
+| "LV (kode 1) tidak ditemukan di label" (RSHS) | kode kelas label berbeda → lihat "kode kelas yang ada di label" di output Langkah 1, ubah `LABEL_MAP`, jalankan ulang dari Langkah 1 |
